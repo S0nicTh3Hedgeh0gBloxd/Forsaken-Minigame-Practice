@@ -73,6 +73,18 @@
     font-size: clamp(15px, 6.25vw, 22.5px);
     letter-spacing: 1px;
   }
+  @media (max-width: 700px) {
+    #timerBanner { width: min(55vw, 256px); }
+    #statPanel {
+      top: 8px;
+      right: auto;
+      left: calc(50% + min(27.5vw, 128px) + 4px);
+      width: 21vw;
+    }
+    .statRow { padding: 0 8%; }
+    .statRow-label { font-size: clamp(8px, 3.2vw, 13px); }
+    .statRow-value { font-size: clamp(12px, 4.8vw, 18px); }
+  }
 
   #puzzleToast {
     position: fixed;
@@ -105,6 +117,7 @@
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    min-height: 100dvh;
     width: 100%;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -295,9 +308,14 @@
       y0.push(top); y1.push(top + cellSize);
       cx.push(left + cellSize / 2); cy.push(top + cellSize / 2);
     }
-    const bannerHeightEstimate = Math.min(window.innerWidth * 0.704, BANNER_MAX_W) * BANNER_ASPECT;
+    const viewportW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+    const viewportH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const bannerWidth = viewportW <= 700
+      ? Math.min(viewportW * 0.55, BANNER_MAX_W)
+      : Math.min(viewportW * 0.704, BANNER_MAX_W);
+    const bannerHeightEstimate = bannerWidth * BANNER_ASPECT;
     const reservedH = bannerHeightEstimate + 118;
-    const fit = Math.min(window.innerWidth - 24, window.innerHeight - reservedH, 560);
+    const fit = Math.max(1, Math.min(viewportW - 24, viewportH - reservedH, 560));
     const scale = fit / BOARD_SRC;
     const cellPx = cellSize * scale;
     const dotR = Math.round(cellPx * 0.36);
@@ -389,7 +407,12 @@
     gameAreaEl.style.paddingTop = (h + 14) + 'px';
     puzzleToastEl.style.top = (h + 6) + 'px';
   }
-  window.addEventListener('resize', fixBannerOffset);
+  function handleViewportResize() {
+    fixBannerOffset();
+    refreshBoardLayout();
+  }
+  window.addEventListener('resize', handleViewportResize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', handleViewportResize);
   fixBannerOffset();
 
 
@@ -644,6 +667,17 @@
 
 
   let transitioning = false;
+  let resizePending = false;
+
+  function refreshBoardLayout() {
+    if (transitioning) {
+      resizePending = true;
+      return;
+    }
+    setBoardSize(SIZE);
+    render();
+  }
+
   function startTransition(oldSnapshot, targetSize=SIZE) {
     transitioning = true;
     const newData = makePuzzle(targetSize);
@@ -662,6 +696,10 @@
         requestAnimationFrame(step);
       } else {
         loadPuzzle(newData);
+        if (resizePending) {
+          resizePending = false;
+          setBoardSize(SIZE);
+        }
         transitioning = false;
         render();
       }
@@ -686,6 +724,10 @@
         requestAnimationFrame(step);
       } else {
         loadPuzzle(newData);
+        if (resizePending) {
+          resizePending = false;
+          setBoardSize(SIZE);
+        }
         transitioning = false;
         render();
       }
